@@ -6,6 +6,7 @@ extension TVStatus {
         switch self {
         case .on: "On"
         case .asleep: "Asleep"
+        case .off: "Off"
         case .unreachable: "Unreachable"
         case .pairing: "Pairing"
         }
@@ -15,7 +16,7 @@ extension TVStatus {
         switch self {
         case .on: .green
         case .asleep: .orange
-        case .unreachable: .gray
+        case .off, .unreachable: .gray
         case .pairing: .blue
         }
     }

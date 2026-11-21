@@ -411,10 +411,24 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         #expect(h.model.screen == .chooseTV)
         #expect(h.model.tvs.map(\.title) == ["Bravo", "Zed", "Alpha"])
         #expect(h.model.tvs.map(\.subtitle) == ["QE55", "UE43", "QE65"])
-        #expect(h.model.tvs.map(\.status) == [.on, .asleep, .unreachable])
+        #expect(h.model.tvs.map(\.status) == [.on, .asleep, .off])
         #expect(h.discovery.scans == [[tvC.host]])
         // Found TVs are remembered.
         #expect(Set(h.store.load().tvs.keys) == [tvA.id, tvB.id, tvC.id])
+    }
+
+    @Test func aWakeableTVThatIsntFoundShowsAsOff() async {
+        // Every TV tested leaves the network when off; one the app can wake is shown as Off.
+        let noMAC = info("uuid:n", host: "192.168.1.13", name: "Nomac", model: "QE50", mac: nil)
+        let h = Harness(known: [tvC, noMAC])
+        await h.appear()
+        h.discovery.yield(.found(tvA))
+        h.discovery.finish()
+        await settle { h.model.tvs.count == 3 }
+        await drain()
+        #expect(h.model.tvs.first?.id == tvA.id) // TVs that answer come first
+        #expect(h.model.tvs.first { $0.id == tvC.id }?.status == .off)
+        #expect(h.model.tvs.first { $0.id == noMAC.id }?.status == .unreachable) // Power couldn't wake it
     }
 
     @Test func sameNamedTVsAreToldApartByAddress() async {
@@ -688,7 +702,7 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         h.sessions.last?.emit(.failed(.unreachable))
         await settle { h.model.statusEvent != nil }
         #expect(h.model.screen == .ready)
-        #expect(h.model.tvs.first?.status == .unreachable)
+        #expect(h.model.tvs.first?.status == .off) // the app can wake it
         #expect(h.model.statusEvent != nil)
     }
 
@@ -759,7 +773,7 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
 
         // The session giving up while power is in flight does not post its own message.
         h.sessions.last?.emit(.failed(.unreachable))
-        await settle { h.model.tvs.first { $0.id == tvA.id }?.status == .unreachable }
+        await settle { h.model.tvs.first { $0.id == tvA.id }?.status == .off }
         #expect(h.model.statusEvent == nil)
 
         h.model.select(tvB.id)
@@ -1065,7 +1079,7 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         await h.appear()
         h.discovery.finish() // the scan missed the TV
         await drain()
-        #expect(h.model.tvs.first?.status == .unreachable)
+        #expect(h.model.tvs.first?.status == .off)
         let details = try #require(await h.model.liveDetails(for: tvA.id))
         #expect(details.status == .on)
         #expect(h.model.tvs.first?.status == .on)
@@ -1426,7 +1440,7 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         session.emit(.failed(.unreachable))
         await settle { h.model.statusEvent == StatusLine.unreachable }
         #expect(h.model.statusEvent == StatusLine.unreachable)
-        #expect(h.model.tvs.first { $0.id == tvA.id }?.status == .unreachable)
+        #expect(h.model.tvs.first { $0.id == tvA.id }?.status == .off)
     }
 
     @Test func powerWithoutSessionExplainsWiFiOrTurnsOn() async {
