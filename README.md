@@ -30,14 +30,14 @@ works, reuse the code under the [MIT license](LICENSE), report problems, and con
 
 ## Requirements
 
-- Works with Samsung Smart TVs running Tizen, 2022 and newer. Many 2018–2021 models also work. Tested on 2022, 2024 and 2026 models.
+- Works with Samsung Smart TVs running Tizen, 2022 and newer. Many 2018–2021 models also work. Tested on 2019, 2022, 2024 and 2026 models.
 - iPhone and TV on the same Wi-Fi/local network. Guest or isolated (client-isolation) networks are not
   supported.
 - Choose "Allow" on the TV the first time the app connects.
 - To turn the TV on from the app, enable the TV's "Power On with Mobile" (network standby) setting. A TV that
   has been off for a long time may need its own remote to turn on.
-- Keep AirPlay on in the TV's settings (on by default) for the quickest discovery; if the TV still isn't found,
-  add it by its IP address.
+- If the TV isn't found, tap Scan Again or add it by its IP address. Keeping AirPlay on in the TV's settings (on
+  by default) helps on some networks.
 - Local Network permission granted on the iPhone (Settings > Privacy & Security > Local Network).
 - iPhone with iOS 27 or later.
 
