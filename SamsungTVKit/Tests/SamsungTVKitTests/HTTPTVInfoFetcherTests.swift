@@ -10,6 +10,21 @@ private enum StubResult: Sendable {
     /// A 200 with headers, then one byte every `interval`; it gives up after `limit` bytes so a broken
     /// deadline fails the test instead of hanging it.
     case drip(interval: TimeInterval, limit: Int)
+    /// The first `count` requests never answer (a TV that accepts the connection, then stalls); later ones get
+    /// a 200 with `body`.
+    case stallFirst(count: Int, body: Data)
+}
+
+/// Answers `open` for every probe and counts them.
+private final class StallProber: PortProbing {
+    let open: Bool
+    private let count = Mutex(0)
+    init(open: Bool) { self.open = open }
+    var probes: Int { count.withLock { $0 } }
+    func isOpen(host: String, port: UInt16, timeout: Duration) async -> Bool {
+        count.withLock { $0 += 1 }
+        return open
+    }
 }
 
 private final class StubProtocol: URLProtocol, @unchecked Sendable {
@@ -39,13 +54,20 @@ private final class StubProtocol: URLProtocol, @unchecked Sendable {
 
     override func startLoading() {
         let url = request.url!
-        let result = Self.state.withLock { s -> StubResult in
+        let (result, index) = Self.state.withLock { s -> (StubResult, Int) in
             s.requests.append(url)
             s.timeouts.append(request.timeoutInterval)
             s.cachePolicies.append(request.cachePolicy)
-            return s.result
+            return (s.result, s.requests.count - 1)
         }
         switch result {
+        case .stallFirst(let count, _) where index < count:
+            return // never answers; the fetcher's deadline or URLSession's timeout ends it
+        case .stallFirst(_, let body):
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+            client?.urlProtocolDidFinishLoading(self)
         case .response(let status, let body):
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -79,8 +101,10 @@ private func fixture(_ name: String) throws -> Data {
     return try Data(contentsOf: url)
 }
 
-private func makeFetcher(maxBytes: Int = 64 * 1024, timeout: Duration = .seconds(2)) -> HTTPTVInfoFetcher {
-    HTTPTVInfoFetcher(session: StubProtocol.makeSession(), timeout: timeout, maxBytes: maxBytes, allowLoopback: false)
+private func makeFetcher(maxBytes: Int = 64 * 1024, timeout: Duration = .seconds(2), stallBudget: Duration = .zero,
+                         prober: any PortProbing = StallProber(open: false)) -> HTTPTVInfoFetcher {
+    HTTPTVInfoFetcher(session: StubProtocol.makeSession(), timeout: timeout, maxBytes: maxBytes,
+                      stallBudget: stallBudget, prober: prober, allowLoopback: false)
 }
 
 @Suite(.serialized)
@@ -156,6 +180,70 @@ struct HTTPTVInfoFetcherTests {
         let defaults = HTTPTVInfoFetcher(session: StubProtocol.makeSession())
         _ = try await defaults.fetchInfo(host: "10.0.0.5")
         #expect(StubProtocol.timeouts[0] == 2.0)
+    }
+
+    // MARK: Stalls (a 2024 TV accepted the connection on 8001, then sent nothing for up to ~13 s)
+
+    @Test func stalledTVIsAskedAgainUntilItAnswers() async throws {
+        StubProtocol.configure(.stallFirst(count: 2, body: try fixture("info-on")))
+        let prober = StallProber(open: true)
+        let info = try await makeFetcher(timeout: .milliseconds(200), stallBudget: .seconds(3), prober: prober)
+            .fetchInfo(host: "10.0.0.5")
+        #expect(info.powerState == .on)
+        #expect(StubProtocol.requests.count == 3)
+        #expect(prober.probes == 2)
+    }
+
+    @Test func timeoutWithNoConnectionIsNotRetried() async {
+        // A TV that is off the network times out too, but never accepts a connection: fail as fast as before.
+        StubProtocol.configure(.stallFirst(count: 100, body: Data()))
+        let prober = StallProber(open: false)
+        let start = ContinuousClock.now
+        await #expect(throws: TVInfoError.unreachable) {
+            try await makeFetcher(timeout: .milliseconds(200), stallBudget: .seconds(3), prober: prober)
+                .fetchInfo(host: "10.0.0.5")
+        }
+        #expect(StubProtocol.requests.count == 1)
+        #expect(prober.probes == 1)
+        #expect(ContinuousClock.now - start < .milliseconds(800))
+    }
+
+    @Test func stallGivesUpWhenTheBudgetRunsOut() async {
+        StubProtocol.configure(.stallFirst(count: 100, body: Data()))
+        let start = ContinuousClock.now
+        await #expect(throws: TVInfoError.unreachable) {
+            try await makeFetcher(timeout: .milliseconds(200), stallBudget: .milliseconds(700),
+                                  prober: StallProber(open: true)).fetchInfo(host: "10.0.0.5")
+        }
+        let elapsed = ContinuousClock.now - start
+        #expect(elapsed >= .milliseconds(600))
+        #expect(elapsed < .milliseconds(1300))
+        #expect(StubProtocol.requests.count >= 3)
+    }
+
+    @Test func definiteAnswersAreNotRetried() async {
+        // A refused connection or a non-TV answer is final: no probe, no second request.
+        let prober = StallProber(open: true)
+        StubProtocol.configure(.response(status: 500, body: Data()))
+        await #expect(throws: TVInfoError.unreachable) {
+            try await makeFetcher(stallBudget: .seconds(3), prober: prober).fetchInfo(host: "10.0.0.5")
+        }
+        StubProtocol.configure(.failure(.cannotConnectToHost))
+        await #expect(throws: TVInfoError.unreachable) {
+            try await makeFetcher(stallBudget: .seconds(3), prober: prober).fetchInfo(host: "10.0.0.5")
+        }
+        #expect(StubProtocol.requests.count == 1)
+        #expect(prober.probes == 0)
+    }
+
+    @Test func noStallBudgetMeansOneAttempt() async {
+        StubProtocol.configure(.stallFirst(count: 1, body: Data()))
+        let prober = StallProber(open: true)
+        await #expect(throws: TVInfoError.unreachable) {
+            try await makeFetcher(timeout: .milliseconds(200), prober: prober).fetchInfo(host: "10.0.0.5")
+        }
+        #expect(StubProtocol.requests.count == 1)
+        #expect(prober.probes == 0)
     }
 
     @Test func requestIgnoresLocalCache() async throws {

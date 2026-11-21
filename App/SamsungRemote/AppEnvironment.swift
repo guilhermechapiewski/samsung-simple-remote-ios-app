@@ -66,7 +66,9 @@ extension AppEnvironment {
     /// The real network, Keychain, iCloud and file-backed dependencies.
     static func live() -> AppEnvironment {
         let credentials = KeychainCredentialStore()
-        let discoveryFetcher = HTTPTVInfoFetcher()
+        // A TV that stalls (accepts the connection, then answers nothing for seconds) is asked again; one
+        // that is off accepts no connection and fails as fast as without a budget.
+        let discoveryFetcher = HTTPTVInfoFetcher(stallBudget: .seconds(12))
         let multicast = Self.buildHasMulticastEntitlement
         let wifiInterface: @Sendable () -> IPv4Interface? = {
             NetworkInterfaces.wifiIPv4(from: NetworkInterfaces.current())
@@ -87,7 +89,9 @@ extension AppEnvironment {
             },
             makePowerController: {
                 PowerController(
-                    fetcher: HTTPTVInfoFetcher(timeout: .seconds(1)),
+                    // Shorter: the user is waiting on the button. A stall mistaken for "off" only sends a
+                    // harmless wake packet, and the app then connects once the TV answers.
+                    fetcher: HTTPTVInfoFetcher(timeout: .seconds(1), stallBudget: .seconds(5)),
                     wake: { mac, interface, host in
                         await WakeOnLAN.send(to: mac, via: interface, host: host, broadcast: multicast)
                     },

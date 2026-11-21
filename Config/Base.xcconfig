@@ -6,7 +6,7 @@ PRODUCT_BUNDLE_IDENTIFIER = org.example.SamsungRemote
 // The app and its Control Center extension must share these (the App Store rejects a mismatch); bump
 // them here only.
 MARKETING_VERSION = 1.1
-CURRENT_PROJECT_VERSION = 5
+CURRENT_PROJECT_VERSION = 6
 
 IPHONEOS_DEPLOYMENT_TARGET = 27.0
 TARGETED_DEVICE_FAMILY = 1

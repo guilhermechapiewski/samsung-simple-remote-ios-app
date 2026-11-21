@@ -21,6 +21,13 @@ confirmed on real hardware; see the checklist at the end.
   A `standby` answer only marks the TV asleep; no answer while retrying shows "Can't reach the TV"
   instead of "Connecting…". The session's own retries (backoff 0.5 s doubling to 30 s, 5 failures, 5 s
   connect timeout) would otherwise take about 40 s to give up.
+- Stalls: a 2024 model, while on, sometimes accepted the TCP connection on 8001 and then sent nothing for up
+  to about 12 s (several requests in a row), then answered in milliseconds again; HTTPS on 8002 answered
+  throughout. A TV that is off the network times out the same way (`URLError.timedOut`), but never completes a
+  TCP connection. So when a request times out, the fetcher tries a TCP connect to 8001 (at most 1 s): if it
+  connects, the TV is there and is asked again, until a stall budget runs out (12 s for discovery, the watch
+  and TV Details; 5 s for the power button's check); if not, it fails at once, as before. Refusals and
+  non-TV answers are never retried.
 - `wss://<host>:8002/api/v2/channels/samsung.remote.control?name=<base64 name>[&token=<token>]` — the
   remote-control channel. The pairing name sent is the constant `TV Remote` (base64 encoded).
   Port 8001 is never used for control.
@@ -30,8 +37,9 @@ confirmed on real hardware; see the checklist at the end.
 - AirPlay advertising can stop while the TV is on: a 2022 model kept answering on port 8001 (`PowerState`
   `on`) but sent no `_airplay._tcp` or `_raop._tcp` records, with AirPlay on in its settings. Standby and back
   did not help; a full restart (hold the remote's power button until the Samsung logo shows) restored it about
-  a minute after boot. That model never answers SSDP, so without the multicast entitlement it can then only be
-  added by IP address, and a saved TV is still found because known addresses are re-probed directly.
+  a minute after boot. That model does not answer the `RemoteControlReceiver` search (it does answer the
+  `dial` one), so without the multicast entitlement it is found by the subnet sweep or by IP address, and a
+  saved TV is still found because known addresses are re-probed directly.
 - Subnet sweep: a TCP connect to port 8001 on every address of the Wi-Fi subnet (skipped above 1,024
   addresses (prefixes shorter than /22) and for non-contiguous netmasks), 64 at a time with a 500 ms timeout
   each, nearest addresses first. Every address that accepts is a candidate and is confirmed with `/api/v2/`
