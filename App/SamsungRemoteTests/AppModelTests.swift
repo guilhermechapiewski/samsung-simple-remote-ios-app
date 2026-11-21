@@ -931,8 +931,8 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         let h = Harness(known: [tvA], selected: tvA.id) // the TV doesn't answer
         await reconnecting(h)
         await tick(h)
-        await settle { h.model.status?.tone == .warning }
-        #expect(h.model.status == StatusLine.unreachable)
+        await settle { h.model.status == StatusLine.offPressPower }
+        #expect(h.model.status == StatusLine.offPressPower) // the app can wake it
         // And once it answers again, the line goes back to the attempt in progress.
         h.fetcher.answer(tvA)
         await tick(h)
@@ -1003,6 +1003,73 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         h.sessions.last?.emit(.connecting) // the connection drops as the TV goes off
         await settle { h.model.status?.title != nil }
         #expect(h.model.status == StatusLine.tvOff)
+        // Still "The TV is off" (not "Press Power…") once it stops answering.
+        h.sessions.last?.emit(.failed(.unreachable))
+        await tick(h)
+        #expect(h.model.status == StatusLine.tvOff)
+    }
+
+    // MARK: A TV that is off
+
+    /// Two known TVs, neither found by the finished scan; `tvA` chosen from the menu.
+    private func choseATVTheScanDidntFind(_ h: Harness) async {
+        await h.appear()
+        h.discovery.finish()
+        await drain()
+        h.model.select(tvA.id)
+        await drain()
+    }
+
+    @Test func choosingATVTheScanDidntFindSaysPressPower() async {
+        let h = Harness(known: [tvA, tvC])
+        await choseATVTheScanDidntFind(h)
+        #expect(h.model.status == StatusLine.offPressPower) // no "Connecting…" first
+        #expect(h.sessions.list.count == 1) // still tries in the background
+        // It answers after all: the line moves on.
+        h.sessions.last?.emit(.connected)
+        await settle { h.model.isConnected }
+        #expect(h.model.status == StatusLine.connected(to: "Bravo"))
+    }
+
+    @Test func aTVThatIsOnConnectsWithoutPressPowerFlash() async {
+        let h = Harness(known: [tvA], selected: tvA.id)
+        await h.appear() // the launch scan is still running
+        await settle { h.sessions.last?.snapshot.connects == 1 }
+        #expect(h.model.status == StatusLine.connecting(to: "Bravo"))
+    }
+
+    @Test func aFailedSessionToAWakeableTVSaysPressPower() async {
+        let h = Harness(known: [tvA], selected: tvA.id)
+        await h.appear()
+        await settle { h.sessions.last?.snapshot.connects == 1 }
+        h.sessions.last?.emit(.failed(.unreachable))
+        await settle { h.model.statusEvent != nil }
+        #expect(h.model.status == StatusLine.offPressPower)
+    }
+
+    @Test func withoutAMACItStillSaysCantReach() async {
+        let noMAC = info("uuid:n", host: "192.168.1.13", name: "Nomac", model: "QE50", mac: nil)
+        let h = Harness(known: [noMAC, tvC])
+        await h.appear()
+        h.discovery.finish()
+        await drain()
+        h.model.select(noMAC.id)
+        await drain()
+        #expect(h.model.status == StatusLine.connecting(to: "Nomac"))
+        h.sessions.last?.emit(.failed(.unreachable))
+        await settle { h.model.statusEvent != nil }
+        #expect(h.model.status == StatusLine.unreachable)
+    }
+
+    @Test func pressingPowerReplacesPressPower() async {
+        let h = Harness(known: [tvA, tvC], power: .failedToWake)
+        await choseATVTheScanDidntFind(h)
+        h.power.gate.close()
+        h.model.togglePower()
+        #expect(h.model.status == StatusLine.turningOn)
+        h.power.gate.open()
+        await settle { !h.model.powerBusy }
+        #expect(h.model.status == StatusLine.notTurnedOn)
     }
 
     // MARK: Launch
@@ -1438,8 +1505,8 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         session.emit(.connected)
         await settle { h.model.isConnected }
         session.emit(.failed(.unreachable))
-        await settle { h.model.statusEvent == StatusLine.unreachable }
-        #expect(h.model.statusEvent == StatusLine.unreachable)
+        await settle { h.model.statusEvent == StatusLine.offPressPower }
+        #expect(h.model.statusEvent == StatusLine.offPressPower)
         #expect(h.model.tvs.first { $0.id == tvA.id }?.status == .off)
     }
 
@@ -1540,10 +1607,10 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
 
         session.emit(.failed(.unreachable))
         await settle { h.model.statusEvent != nil }
-        #expect(h.model.status == StatusLine.unreachable)
+        #expect(h.model.status == StatusLine.offPressPower)
         // Even with the message gone, a session that gave up is never shown as connecting.
         h.model.statusEvent = nil
-        #expect(h.model.status == StatusLine.unreachable)
+        #expect(h.model.status == StatusLine.offPressPower)
         session.emit(.failed(.approvalTimedOut))
         await settle { h.model.statusEvent != nil }
         h.model.statusEvent = nil
@@ -1565,8 +1632,8 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         await h.connectCurrent(keepConfirmation: true)
         #expect(h.model.status?.tone == .success)
         h.sessions.last?.emit(.failed(.unreachable))
-        await settle { h.model.status?.tone == .warning }
-        #expect(h.model.status == StatusLine.unreachable)
+        await settle { h.model.status?.tone == .info }
+        #expect(h.model.status == StatusLine.offPressPower)
     }
 
     @Test func pressingPowerShowsTheDirectionAtOnce() async {
@@ -1574,7 +1641,7 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         // message in the meantime.
         let h = Harness(known: [tvA], selected: tvA.id, power: .turnedOn)
         await unreachableSelected(h)
-        #expect(h.model.status == .unreachable)
+        #expect(h.model.status == .offPressPower)
         h.power.gate.close()
         h.model.togglePower()
         #expect(h.model.status == .turningOn) // synchronously, before any await

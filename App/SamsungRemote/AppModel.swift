@@ -122,6 +122,8 @@ final class AppModel {
     static let missingTVRescanDatesKey = "missingTVRescanDates"
     /// The last watch check found the selected TV not answering while its session was retrying.
     var watchFoundNoAnswer = false
+    /// The selected TV has connected since it was chosen (so it was answering, whatever the last scan saw).
+    var selectedHasConnected = false
     @ObservationIgnored private var labelTask: Task<Void, Never>?
     @ObservationIgnored private var wifiTask: Task<Void, Never>?
     @ObservationIgnored var appeared = false
@@ -298,7 +300,10 @@ final class AppModel {
         guard registry.tvs[id] != nil else { return }
         if id == selectedID, let current, current.host == registry.tvs[id]?.lastHost, !sessionFailed { return }
         repeater.end()
-        if id != selectedID { resetMissingTVRescan() }
+        if id != selectedID {
+            resetMissingTVRescan()
+            selectedHasConnected = false
+        }
         selectedID = id
         env.userDefaults.set(id.rawValue, forKey: Self.selectedTVKey)
         statusEvent = nil
@@ -363,6 +368,7 @@ final class AppModel {
             endConnectedConfirmation()
         }
         if state == .connected, let id = selectedID {
+            selectedHasConnected = true
             turnedOffTVs.remove(id)
             if !powerTipShown.contains(id.rawValue) { powerTipTV = id }
         }
@@ -378,7 +384,7 @@ final class AppModel {
             } else if selectedTurnedOff {
                 statusEvent = .tvOff
             } else {
-                statusEvent = state == .failed(.unreachable) ? .unreachable : .approvalTimedOut
+                statusEvent = state == .failed(.unreachable) ? unreachableLine : .approvalTimedOut
             }
         case .idle:
             break

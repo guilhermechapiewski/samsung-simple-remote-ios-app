@@ -14,6 +14,7 @@ extension AppModel {
         if let statusEvent { return statusEvent }
         guard screen == .ready else { return Self.screenStatusText(screen).map { StatusLine($0, tone: .info) } }
         if selectedTurnedOff, sessionState != .awaitingApproval { return .tvOff }
+        if selectedAppearsOff { return .offPressPower }
         switch sessionState {
         case .connected:
             return showsConnected ? .connected(to: selectedTitle) : nil
@@ -30,6 +31,24 @@ extension AppModel {
     }
 
     var selectedTitle: String? { tvs.first { $0.id == selectedID }?.title }
+
+    /// The selected TV isn't answering and Power could turn it on: its session failed as unreachable, the watch
+    /// found no answer while connecting, or (until it has connected since it was chosen) the last finished scan
+    /// didn't see it. Then the status line says "Press Power to turn the TV on" instead of a failing
+    /// "Connecting…" or "Can't reach the TV".
+    var selectedAppearsOff: Bool {
+        guard let id = selectedID, isWakeable(id) else { return false }
+        switch sessionState {
+        case .failed(.unreachable): return true
+        case .idle, .connecting: return watchFoundNoAnswer || (!scanning && seen[id] == nil && !selectedHasConnected)
+        case .connected, .awaitingApproval, .failed: return false
+        }
+    }
+
+    /// The line for a session that failed as unreachable.
+    var unreachableLine: StatusLine {
+        selectedID.map(isWakeable) == true ? .offPressPower : .unreachable
+    }
 
     func confirmConnected() {
         connectedConfirmationTask?.cancel()

@@ -30,7 +30,7 @@ names or TV names. In public notes, refer to TVs only by model year and series.
 - [ ] "Add TV by IP…" adds a TV by its address; a public or invalid address is rejected with a message.
 - [ ] With AirPlay turned off on a TV that is on, Scan Again still finds it (subnet sweep).
 - [ ] A scan on the home Wi-Fi finishes in about the same time as before.
-- [ ] Relaunching the app shows remembered TVs immediately, including ones that are off (Unreachable/Asleep).
+- [ ] Relaunching the app shows remembered TVs immediately, including ones that are off (Off/Asleep).
 
 ## Pairing
 
@@ -74,6 +74,9 @@ a haptic tap:
 - [ ] **Power off:** with the TV on, Power shows "Turning off…" and the TV turns off; it never turns a TV on.
 - [ ] After turning off with the app, confirm the TV shows Asleep/Off in the picker (not On) — some TVs keep
       the WebSocket open in standby — and the status line says the TV is off (never "Connecting…").
+- [ ] **A known TV that is off:** it shows Off in the TV menu; choosing it shows "Press Power to turn the TV on"
+      with no "Connecting…" first; Power turns it on and it connects. A TV whose wake address isn't known
+      still says "Can't reach the TV" (Unreachable in the menu).
 - [ ] **Power on from standby:** within a few minutes of turning it off, Power turns the TV on.
 - [ ] **Power on after a short while:** turn the TV off with its own remote, wait until the picker shows it
       Asleep, then press Power within 5 minutes: the TV turns on (Wake-on-LAN) and the app reconnects.
@@ -119,7 +122,7 @@ a haptic tap:
       unreachable): within a few seconds of the TV coming on, the app connects by itself, without Scan Again,
       and "The TV hasn't turned on yet" goes away.
 - [ ] Turn the TV off with its own remote while the app is open: within a few seconds the app shows it as
-      off ("The TV is off" or "Can't reach the TV", never a long "Connecting…"), and only Power stays
+      off ("The TV is off" or "Press Power to turn the TV on", never a long "Connecting…"), and only Power stays
       enabled; turn it back on with its own remote: the app connects within seconds.
 - [ ] Turn the TV off with the app's Power button: "Turning off…", then "The TV is off", with no
       "Connecting…" in between.
@@ -127,7 +130,7 @@ a haptic tap:
       come and go (also at the largest text size, where it may use two lines). Lines with more to say
       show ⓘ; tapping opens the explanation.
 - [ ] Pressing Power shows "Turning on…" / "Turning off…" at once, with no older message flashing first.
-- [ ] With "Can't reach the TV" showing and the TV back on, tapping ⓘ and then Try Again in the status details
+- [ ] With "Press Power to turn the TV on" showing and the TV back on, tapping ⓘ and then Try Again in the status details
       reconnects.
 - [ ] Turning the TV off with the app turns the card's dot orange (Asleep) right away.
 
