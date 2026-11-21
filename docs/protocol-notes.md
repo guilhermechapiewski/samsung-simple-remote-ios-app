@@ -11,6 +11,9 @@ confirmed on real hardware; see the checklist at the end.
   access point's BSSID on the TVs seen so far; shown only when it is a MAC), the `*Support` feature flags,
   `developerMode`, `firmwareVersion` (most TVs say "Unknown"; hidden then) and the top-level `version`.
   The model year comes from the `model` code's two-digit prefix ("22_…" is 2022).
+  2019 models (Q50) start `name` with "[TV] " (dropped by the app), and two TVs of the same model and size
+  report the same name ("Samsung Q50 Series (32)"), so the TV list adds the address after the model when
+  two TVs share a title.
   While the app is in front, the app GETs this endpoint for the selected TV every 2 s, connected or not
   (not while pairing). While connected: `standby` means the TV was turned off with its own remote (in network
   standby the WebSocket can stay open), so it is shown as off with only Power usable; two missed answers in

@@ -101,6 +101,8 @@ a haptic tap:
 - [ ] Tapping the TV card opens the menu panel in place (same card style), dimming the rest; tapping outside,
       the header, or a VoiceOver escape (two-finger scrub) closes it.
 - [ ] Choosing a TV in the menu selects it and closes the menu; the selected TV has a checkmark.
+- [ ] Two TVs with the same name (e.g. two of the same model) show their addresses after the model; renaming
+      one removes them. Older TVs' names show without a leading "[TV]".
 - [ ] Switching TVs shows a blue "Connecting to <TV>…" line with a spinner, then a green "Connected to <TV>"
       for about 2 s; problems show in orange with a warning icon, in light and dark mode.
 - [ ] Scan Again keeps the menu open; newly found TVs appear in the list.

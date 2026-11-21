@@ -417,6 +417,27 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         #expect(Set(h.store.load().tvs.keys) == [tvA.id, tvB.id, tvC.id])
     }
 
+    @Test func sameNamedTVsAreToldApartByAddress() async {
+        // Two 2019 TVs of the same model report the same name; only their addresses differ.
+        let one = info("twin-1", host: "10.0.0.31", name: "Q50 Series (32)", model: "QN32")
+        let two = info("twin-2", host: "10.0.0.32", name: "q50 series (32) ", model: "QN32")
+        let h = Harness()
+        await h.appear()
+        h.discovery.yield(.found(one))
+        h.discovery.yield(.found(two))
+        h.discovery.yield(.found(tvA))
+        h.discovery.finish()
+        await settle { h.model.tvs.count == 3 }
+        await drain()
+        let subtitles = Dictionary(uniqueKeysWithValues: h.model.tvs.map { ($0.id, $0.subtitle) })
+        #expect(subtitles[one.id] == "QN32 · 10.0.0.31")
+        #expect(subtitles[two.id] == "QN32 · 10.0.0.32")
+        #expect(subtitles[tvA.id] == "QE55") // unique names keep the model alone
+        // Renaming one makes both unique again.
+        h.model.rename(two.id, to: "Guest Room")
+        #expect(h.model.tvs.first { $0.id == one.id }?.subtitle == "QN32")
+    }
+
     @Test func searchingThenNoTVs() async {
         let h = Harness()
         await h.appear()

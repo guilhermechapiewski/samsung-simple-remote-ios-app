@@ -5,7 +5,7 @@ struct TVListItem: Identifiable, Equatable {
     let id: TVID
     /// The user's label, else the name the TV reports.
     var title: String
-    /// The model name.
+    /// The model name, followed by the TV's address when another TV has the same title.
     var subtitle: String
     var status: TVStatus
 }

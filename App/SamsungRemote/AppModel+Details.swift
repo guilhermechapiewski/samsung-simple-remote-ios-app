@@ -113,10 +113,16 @@ extension AppModel {
     }
 
     func rebuildTVs() {
-        tvs = registry.tvs.values
-            .map { tv in
-                TVListItem(id: tv.id, title: env.labels.label(for: tv.id) ?? tv.reportedName,
-                           subtitle: tv.modelName, status: status(of: tv.id))
+        let titled = registry.tvs.values.map { tv in (tv, env.labels.label(for: tv.id) ?? tv.reportedName) }
+        // Identical TVs can report identical names (two 2019 models in testing); their addresses tell them apart.
+        let key = { (title: String) in title.trimmingCharacters(in: .whitespaces).lowercased() }
+        let counts = Dictionary(titled.map { (key($0.1), 1) }, uniquingKeysWith: +)
+        tvs = titled
+            .map { tv, title in
+                let shared = counts[key(title), default: 0] > 1
+                return TVListItem(id: tv.id, title: title,
+                                  subtitle: shared ? "\(tv.modelName) · \(tv.lastHost)" : tv.modelName,
+                                  status: status(of: tv.id))
             }
             .sorted { lhs, rhs in
                 let (l, r) = (lhs.status != .unreachable, rhs.status != .unreachable)

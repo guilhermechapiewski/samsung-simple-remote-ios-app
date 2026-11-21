@@ -119,7 +119,7 @@ public struct TVDeviceInfo: Equatable, Sendable {
         return TVDeviceInfo(
             id: TVID(rawValue: device.id),
             host: host,
-            name: text(HTMLEntities.decode(device.name ?? response.name ?? "")) ?? "",
+            name: displayName(text(HTMLEntities.decode(device.name ?? response.name ?? "")) ?? ""),
             modelName: text(device.modelName) ?? "",
             modelCode: text(device.model) ?? "",
             wifiMAC: device.wifiMac.flatMap(MACAddress.init),
@@ -160,6 +160,14 @@ public struct TVDeviceInfo: Equatable, Sendable {
         let trimmed = cleaned.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
         return String(trimmed.prefix(maxTextLength))
+    }
+
+    /// Older TVs (2019 models in testing) start their name with "[TV] "; it is dropped unless nothing would be
+    /// left.
+    static func displayName(_ name: String) -> String {
+        guard name.hasPrefix("[TV]") else { return name }
+        let rest = name.dropFirst(4).trimmingCharacters(in: .whitespaces)
+        return rest.isEmpty ? name : rest
     }
 
     private static func flag(_ value: String?) -> Bool? {

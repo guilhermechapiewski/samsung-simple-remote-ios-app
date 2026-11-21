@@ -110,3 +110,17 @@ private func fixture(_ name: String) throws -> Data {
     #expect(TVDeviceInfo.text("  \t ") == nil)
     #expect(TVDeviceInfo.text("Café ✓") == "Café ✓")
 }
+
+@Test func olderTVsNamePrefixIsDropped() throws {
+    // 2019 models report e.g. "[TV] Samsung Q50 Series (32)"; newer ones have no prefix.
+    func name(_ reported: String) throws -> String {
+        let json = try #require(String(data: fixture("info-on"), encoding: .utf8))
+            .replacingOccurrences(of: #""name":"65&quot; Test TV","networkType""#,
+                                  with: "\"name\":\"\(reported)\",\"networkType\"")
+        return try TVDeviceInfo.decode(Data(json.utf8), host: "10.0.0.5").name
+    }
+    #expect(try name("[TV] Samsung Q50 Series (32)") == "Samsung Q50 Series (32)")
+    #expect(try name("[TV]Den") == "Den")
+    #expect(try name("Den [TV]") == "Den [TV]") // only a leading prefix
+    #expect(try name("[TV]") == "[TV]") // nothing would be left
+}
