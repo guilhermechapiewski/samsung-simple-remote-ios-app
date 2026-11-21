@@ -99,6 +99,7 @@ extension AppModel {
 
     private func finishScan() {
         scanning = false
+        aScanHasFinished = true
         lastScanFoundNothing = foundThisScan.isEmpty
         seen = seen.filter { foundThisScan.contains($0.key) }
         if let baseline = scanAgainBaseline { finishScanAgain(baseline: baseline) }

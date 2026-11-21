@@ -8,7 +8,7 @@ import UIKit
     private static let catalog: [StatusLine] = [
         .turningOn, .turningOff, .reconnecting, .connecting(to: nil), .connected(to: nil), .tvOff, .unreachable,
         .notTurnedOn, .wakeAddressUnknown, .notOnWiFi, .approvalTimedOut, .chooseTVFirst, .chooseAllow,
-        .blocked, .identityChanged,
+        .blocked, .identityChanged, .offPressPower,
     ]
 
     @Test func titlesAreShortAndExplanationsLiveInDetail() {
@@ -41,6 +41,14 @@ import UIKit
         #expect(StatusLine.approvalTimedOut.action == .tryAgain)
         #expect(StatusLine.unreachable.action == .tryAgain)
         #expect(StatusLine.tvOff.action == nil)
+        #expect(StatusLine.offPressPower.action == .tryAgain)
+    }
+
+    @Test func offPressPowerCopy() {
+        #expect(StatusLine.offPressPower.title == "Press Power to turn the TV on")
+        #expect(StatusLine.offPressPower.detail == "The TV isn't answering, so it's probably off. If it's on, make sure "
+            + "it's on the same Wi-Fi network as this iPhone.")
+        #expect(StatusLine.offPressPower.tone == .info)
     }
 
     @Test func onlyTappableStatusesLookTappable() {
@@ -50,6 +58,7 @@ import UIKit
             #expect(!(line.symbol ?? "").contains("info"), "\(line.title)")
         }
         #expect(StatusLine.tvOff.symbol == "power")
+        #expect(StatusLine.offPressPower.symbol == "power")
     }
 
     /// The point of the fixed-height line: the remote below must not move, whatever is (or isn't) shown.

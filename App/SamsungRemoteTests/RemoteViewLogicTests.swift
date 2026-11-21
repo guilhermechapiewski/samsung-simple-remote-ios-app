@@ -38,6 +38,8 @@ import SamsungTVKit
         #expect(TVStatus.on.displayName == "On")
         #expect(TVStatus.asleep.displayName == "Asleep")
         #expect(TVStatus.unreachable.displayName == "Unreachable")
+        #expect(TVStatus.off.displayName == "Off")
+        #expect(TVStatus.off.dotColor == .gray)
         #expect(TVStatus.pairing.displayName == "Pairing")
     }
 

@@ -78,8 +78,9 @@ extension AppModel {
         case .failed(.identityChanged): return .identityChanged
         case .failed(.unreachable) where selectedTurnedOff, .failed(.approvalTimedOut) where selectedTurnedOff:
             return .tvOff
-        case .failed(.unreachable): return .unreachable
+        case .failed(.unreachable): return unreachableLine
         case .failed(.approvalTimedOut): return .approvalTimedOut
+        case .idle where selectedAppearsOff, .connecting where selectedAppearsOff: return .offPressPower
         case .idle, .connecting, .connected: return .connecting(to: selectedTitle)
         }
     }

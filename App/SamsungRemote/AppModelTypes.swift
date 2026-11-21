@@ -26,7 +26,12 @@ struct TVDetailsSnapshot: Equatable {
 }
 
 enum TVStatus: Equatable {
-    case on, asleep, unreachable, pairing
+    /// `off`: not answering, but the app can wake it (its MAC is known). Every TV tested leaves the network when
+    /// off, so that is the likely reason. `unreachable`: not answering, and Power couldn't turn it on.
+    case on, asleep, off, unreachable, pairing
+
+    /// The TV answered the app recently.
+    var answers: Bool { self != .off && self != .unreachable }
 }
 
 enum ScreenState: Equatable {

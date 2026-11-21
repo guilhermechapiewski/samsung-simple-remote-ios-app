@@ -21,8 +21,10 @@ confirmed on real hardware; see the checklist at the end.
   notice). While not connected, when the TV answers `PowerState: on`, a
   failed session reconnects, and a retry stuck waiting out its backoff (still connecting after 4 checks)
   starts over at once; so a TV that boots late or is turned on with its own remote connects within seconds.
-  A `standby` answer only marks the TV asleep; no answer while retrying shows "Can't reach the TV"
-  instead of "Connecting…". The session's own retries (backoff 0.5 s doubling to 30 s, 5 failures, 5 s
+  A `standby` answer only marks the TV asleep. No answer while retrying shows "Press Power to turn the TV
+  on" (and "Off" in the TV menu) when the app knows the TV's MAC, since every TV tested leaves the network when
+  off and Wake-on-LAN turns it on; a TV chosen after a scan that didn't find it shows that at once, without
+  "Connecting…" first. Without a known MAC it shows "Can't reach the TV" (and "Unreachable") instead. The session's own retries (backoff 0.5 s doubling to 30 s, 5 failures, 5 s
   connect timeout) would otherwise take about 40 s to give up.
 - Stalls: a 2024 model, while on, sometimes accepted the TCP connection on 8001 and then sent nothing for up
   to about 12 s (several requests in a row), then answered in milliseconds again; HTTPS on 8002 answered

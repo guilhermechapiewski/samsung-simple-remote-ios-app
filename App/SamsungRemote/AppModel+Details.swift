@@ -125,7 +125,7 @@ extension AppModel {
                                   status: status(of: tv.id))
             }
             .sorted { lhs, rhs in
-                let (l, r) = (lhs.status != .unreachable, rhs.status != .unreachable)
+                let (l, r) = (lhs.status.answers, rhs.status.answers)
                 if l != r { return l }
                 let order = lhs.title.localizedStandardCompare(rhs.title)
                 return order == .orderedSame ? lhs.id.rawValue < rhs.id.rawValue : order == .orderedAscending
@@ -138,14 +138,24 @@ extension AppModel {
             case .awaitingApproval: return .pairing
             case .connected: return turnedOffTVs.contains(id) ? .asleep : .on
             case .failed(.unreachable), .failed(.approvalTimedOut):
-                return turnedOffTVs.contains(id) ? .asleep : .unreachable
+                return turnedOffTVs.contains(id) ? .asleep : notAnswering(id)
             case .idle, .connecting, .failed(.denied), .failed(.identityChanged): break
             }
         }
         // Cleared as soon as the TV is seen on again, so it outranks an older scan result.
         if turnedOffTVs.contains(id) { return .asleep }
-        guard let info = seen[id] else { return .unreachable }
+        guard let info = seen[id] else { return notAnswering(id) }
         return info.powerState == .on ? .on : .asleep
+    }
+
+    /// A TV that isn't answering: off when the app can wake it, else unreachable.
+    private func notAnswering(_ id: TVID) -> TVStatus {
+        isWakeable(id) ? .off : .unreachable
+    }
+
+    /// Power could turn the TV on: its Wake-on-LAN MAC is known and the iPhone is on Wi-Fi.
+    func isWakeable(_ id: TVID) -> Bool {
+        onWiFi && registry.tvs[id]?.wifiMAC != nil
     }
 
     func saveRegistry() {

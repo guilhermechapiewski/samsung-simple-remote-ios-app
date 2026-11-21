@@ -71,6 +71,15 @@ extension StatusLine {
     }
 
     static let tvOff = StatusLine("The TV is off", tone: .info, symbol: "power")
+    /// A TV the app can wake isn't answering: every TV tested leaves the network when off, so it most likely is,
+    /// and Power turns it on. Said calmly, without a failed "Connecting…" first.
+    static let offPressPower = StatusLine(
+        "Press Power to turn the TV on", tone: .info,
+        detail: "The TV isn't answering, so it's probably off. If it's on, make sure it's on the same Wi-Fi "
+            + "network as this iPhone.",
+        symbol: "power",
+        action: .tryAgain
+    )
     static let unreachable = StatusLine(
         "Can't reach the TV", tone: .warning,
         detail: "Make sure the TV is on and connected to the same Wi-Fi network as this iPhone. "
