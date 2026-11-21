@@ -76,7 +76,7 @@ extension StatusLine {
     static let offPressPower = StatusLine(
         "Press Power to turn the TV on", tone: .info,
         detail: "The TV isn't answering, so it's probably off. If it's on, make sure it's on the same Wi-Fi "
-            + "network as this iPhone.",
+            + "network as this iPhone, then tap Scan Again in the TV menu.",
         symbol: "power",
         action: .tryAgain
     )

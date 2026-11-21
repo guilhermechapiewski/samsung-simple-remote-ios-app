@@ -46,8 +46,9 @@ import UIKit
 
     @Test func offPressPowerCopy() {
         #expect(StatusLine.offPressPower.title == "Press Power to turn the TV on")
+        // A TV that is on at a new address also looks off; Scan Again finds it there.
         #expect(StatusLine.offPressPower.detail == "The TV isn't answering, so it's probably off. If it's on, make sure "
-            + "it's on the same Wi-Fi network as this iPhone.")
+            + "it's on the same Wi-Fi network as this iPhone, then tap Scan Again in the TV menu.")
         #expect(StatusLine.offPressPower.tone == .info)
     }
 
