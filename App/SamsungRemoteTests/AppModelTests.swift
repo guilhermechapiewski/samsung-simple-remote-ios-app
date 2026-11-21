@@ -1031,6 +1031,25 @@ private let tvC = info("uuid:c", host: "192.168.1.12", name: "Alpha", model: "QE
         #expect(h.model.status == StatusLine.connected(to: "Bravo"))
     }
 
+    @Test func firstFrameNeverSaysPressPower() {
+        // Before onAppear (the first frame), no scan has run yet: nothing says the TV is off.
+        let h = Harness(known: [tvA], selected: tvA.id)
+        #expect(h.model.status == StatusLine.connecting(to: "Bravo"))
+    }
+
+    @Test func backFromBackgroundATVThatIsOffSaysPressPower() async {
+        // The owner's morning: the TV connected last night, the app stayed suspended, the TV is off now.
+        let h = Harness(known: [tvA], selected: tvA.id)
+        await h.appear()
+        await h.connectCurrent()
+        h.model.scenePhaseChanged(.background)
+        h.model.scenePhaseChanged(.active)
+        await settle { h.discovery.scans.count == 2 }
+        h.discovery.finish() // the scan on return doesn't find it
+        await drain()
+        #expect(h.model.status == StatusLine.offPressPower) // no "Connecting…" first
+    }
+
     @Test func aTVThatIsOnConnectsWithoutPressPowerFlash() async {
         let h = Harness(known: [tvA], selected: tvA.id)
         await h.appear() // the launch scan is still running

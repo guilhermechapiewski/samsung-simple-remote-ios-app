@@ -122,8 +122,11 @@ final class AppModel {
     static let missingTVRescanDatesKey = "missingTVRescanDates"
     /// The last watch check found the selected TV not answering while its session was retrying.
     var watchFoundNoAnswer = false
-    /// The selected TV has connected since it was chosen (so it was answering, whatever the last scan saw).
+    /// The selected TV has connected since it was chosen or the app last came to the front (so it was answering
+    /// recently, whatever the last scan saw).
     var selectedHasConnected = false
+    /// A scan has finished since launch, so `seen` says which TVs answered (before that, nothing is known).
+    var aScanHasFinished = false
     @ObservationIgnored private var labelTask: Task<Void, Never>?
     @ObservationIgnored private var wifiTask: Task<Void, Never>?
     @ObservationIgnored var appeared = false
@@ -203,6 +206,7 @@ final class AppModel {
         switch phase {
         case .background:
             inBackground = true
+            selectedHasConnected = false // hours may pass before the app is back
             repeater.end()
             cancelScan()
             cancelDeniedRetries()
